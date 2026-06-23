@@ -1,4 +1,5 @@
-import TelegramBot from 'node-telegram-bot-api';
+import type TelegramBot from 'node-telegram-bot-api';
+import type { Message } from 'node-telegram-bot-api';
 import { MESSAGES } from '../variables/messages';
 import { createScopedLogger } from './logger';
 import { processDocumentWithFlexibleExtraction } from './claudeService';
@@ -20,7 +21,7 @@ const EXCEL_EXTENSIONS = ['.xls', '.xlsx', '.csv'] as const;
  * @param bot - Экземпляр Telegram бота
  * @param msg - Сообщение от пользователя
  */
-export const handleStart = async (bot: TelegramBot, msg: TelegramBot.Message): Promise<void> => {
+export const handleStart = async (bot: TelegramBot, msg: Message): Promise<void> => {
 	const chatId = msg.chat.id;
 
 	try {
@@ -37,7 +38,7 @@ export const handleStart = async (bot: TelegramBot, msg: TelegramBot.Message): P
  * @param bot - Экземпляр Telegram бота
  * @param msg - Сообщение от пользователя
  */
-export const handleHelp = async (bot: TelegramBot, msg: TelegramBot.Message): Promise<void> => {
+export const handleHelp = async (bot: TelegramBot, msg: Message): Promise<void> => {
 	const chatId = msg.chat.id;
 
 	try {
@@ -50,7 +51,7 @@ export const handleHelp = async (bot: TelegramBot, msg: TelegramBot.Message): Pr
 /**
  * Обрабатывает входящие документы
  */
-export const handleDocument = async (bot: TelegramBot, msg: TelegramBot.Message): Promise<void> => {
+export const handleDocument = async (bot: TelegramBot, msg: Message): Promise<void> => {
 	const chatId = msg.chat.id;
 	const fileId = msg.document?.file_id;
 
@@ -66,7 +67,7 @@ export const handleDocument = async (bot: TelegramBot, msg: TelegramBot.Message)
 /**
  * Обрабатывает входящие фотографии
  */
-export const handlePhoto = async (bot: TelegramBot, msg: TelegramBot.Message): Promise<void> => {
+export const handlePhoto = async (bot: TelegramBot, msg: Message): Promise<void> => {
 	const chatId = msg.chat.id;
 	const photos = msg.photo;
 
@@ -88,7 +89,7 @@ export const handlePhoto = async (bot: TelegramBot, msg: TelegramBot.Message): P
  * @param fileType - Тип файла ('document' или 'photo')
  * @param fileName - Имя файла для обработки
  */
-const processFile = async (bot: TelegramBot, msg: TelegramBot.Message, fileType: FileType, fileName: string): Promise<void> => {
+const processFile = async (bot: TelegramBot, msg: Message, fileType: FileType, fileName: string): Promise<void> => {
 	const chatId = msg.chat.id;
 
 	log.info('Начало обработки файла', { chatId, fileType, fileName });
@@ -129,7 +130,7 @@ const processFile = async (bot: TelegramBot, msg: TelegramBot.Message, fileType:
  */
 const getFileInfo = async (
 	bot: TelegramBot,
-	msg: TelegramBot.Message,
+	msg: Message,
 	fileType: FileType,
 	fileName: string,
 ): Promise<{
@@ -184,7 +185,7 @@ const downloadFileContent = async (fileInfo: { telegramPath: string; localPath: 
  * @param fileType - Тип файла
  * @returns Promise с сообщением статуса
  */
-const sendInitialStatus = async (bot: TelegramBot, chatId: number, fileType: FileType): Promise<TelegramBot.Message> => {
+const sendInitialStatus = async (bot: TelegramBot, chatId: number, fileType: FileType): Promise<Message> => {
 	const statusText = fileType === 'document' ? MESSAGES.STATUS_DOCUMENT_RECEIVED : MESSAGES.STATUS_PHOTO_RECEIVED;
 	return await bot.sendMessage(chatId, statusText);
 };

@@ -1,4 +1,4 @@
-import TelegramBot from 'node-telegram-bot-api';
+import type { Message } from 'node-telegram-bot-api';
 
 export interface DocumentItem {
 	name: string; // "Кирпич"
@@ -42,7 +42,7 @@ export interface ProcessingContext {
 	chatId: number;
 	fileType: FileType;
 	fileName: string;
-	statusMessage: TelegramBot.Message;
+	statusMessage: Message;
 }
 
 export interface ClaudeApiStatus {

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import util from 'util';
 
 export type LogLevel = 'info' | 'error' | 'warn' | 'debug';
 
@@ -25,6 +26,13 @@ export class Logger {
 	private logsDir: string;
 	private maxLogAge: number;
 	private scope?: string;
+	private static readonly COLORS = {
+		info: '\x1b[32m',
+		warn: '\x1b[33m',
+		error: '\x1b[31m',
+		debug: '\x1b[90m',
+		reset: '\x1b[0m',
+	} as const;
 
 	constructor(logsDir: string = path.resolve(__dirname, '../../logs'), maxLogAge: number = 7 * 24 * 60 * 60 * 1000, scope?: string) {
 		this.logsDir = logsDir;
@@ -61,7 +69,7 @@ export class Logger {
 	}
 
 	private write(level: LogLevel, message: string, data?: unknown): void {
-		const timestamp = new Date().toISOString();
+		const timestamp = this.formatTimestamp(new Date());
 		const logEntry: LogEntry = {
 			timestamp,
 			level,
@@ -69,7 +77,7 @@ export class Logger {
 			message,
 			data,
 		};
-		const logString = JSON.stringify(logEntry) + '\n';
+		const logString = this.formatFileLog(logEntry);
 
 		try {
 			const filePath = path.join(this.logsDir, level === 'error' ? 'error.log' : 'app.log');
@@ -79,14 +87,72 @@ export class Logger {
 		}
 
 		const scopeLabel = this.scope ? `[${this.scope}] ` : '';
-		const prefix = `[${timestamp}] ${level.toUpperCase()} ${scopeLabel}`;
+		const prefix = `[${timestamp}] ${level.toUpperCase()} ${scopeLabel}${message}`;
+		const color = Logger.COLORS[level];
 
-		if (data !== undefined) {
-			console.log(`${prefix}${message}`, data);
+		if (data === undefined) {
+			console.log(`${color}${prefix}${Logger.COLORS.reset}`);
 			return;
 		}
 
-		console.log(`${prefix}${message}`);
+		console.log(`${color}${prefix}${Logger.COLORS.reset}\n${this.formatConsoleData(data)}`);
+	}
+
+	private formatTimestamp(date: Date): string {
+		return new Intl.DateTimeFormat('ru-RU', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: false,
+		}).format(date);
+	}
+
+	private formatFileLog(entry: LogEntry): string {
+		const scopeLabel = entry.scope ? `[${entry.scope}] ` : '';
+		const baseLine = `[${entry.timestamp}] ${entry.level.toUpperCase()} ${scopeLabel}${entry.message}`;
+
+		if (entry.data === undefined) {
+			return `${baseLine}\n`;
+		}
+
+		return `${baseLine}\n${this.formatFileData(entry.data)}\n`;
+	}
+
+	private formatFileData(data: unknown): string {
+		if (data instanceof Error) {
+			return data.stack || data.message;
+		}
+
+		if (typeof data === 'string') {
+			return data;
+		}
+
+		return util.inspect(data, {
+			depth: 6,
+			colors: false,
+			compact: false,
+			breakLength: 120,
+		});
+	}
+
+	private formatConsoleData(data: unknown): string {
+		if (data instanceof Error) {
+			return data.stack || data.message;
+		}
+
+		if (typeof data === 'string') {
+			return data;
+		}
+
+		return util.inspect(data, {
+			depth: 6,
+			colors: true,
+			compact: false,
+			breakLength: 120,
+		});
 	}
 
 	info(message: string, data?: unknown): void {

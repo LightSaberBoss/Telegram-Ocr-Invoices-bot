@@ -35,7 +35,7 @@ const gracefulShutdown = async (): Promise<void> => {
 	log.info('Начинается graceful shutdown...');
 
 	try {
-		stopBot();
+		await stopBot();
 		await new Promise((resolve) => setTimeout(resolve, APP_CONFIG.GRACEFUL_SHUTDOWN_TIMEOUT));
 		log.info('Приложение завершено корректно');
 		process.exit(0);
@@ -58,13 +58,13 @@ const setupGlobalErrorHandlers = (): void => {
 	log.info('Глобальные обработчики ошибок настроены');
 };
 
-const startApplication = (): void => {
+const startApplication = async (): Promise<void> => {
 	try {
 		log.info('Запуск Telegram OCR Bot...');
 
 		setupGlobalErrorHandlers();
 		setupDefaultDirectories();
-		initializeBot();
+		await initializeBot();
 
 		log.info('Приложение запущено и готово к работе');
 	} catch (error) {
@@ -73,4 +73,4 @@ const startApplication = (): void => {
 	}
 };
 
-startApplication();
+void startApplication();
