@@ -7,6 +7,7 @@
 		"start": "node dist/index.js",
 		"build": "tsc",
 		"dev": "ts-node src/index.ts",
+		"dev:watch": "ts-node --watch src/index.ts",
 		"debug": "set DEBUG=* && ts-node src/index.ts",
 		"serve": "tsc && node dist/index.js"
 	},

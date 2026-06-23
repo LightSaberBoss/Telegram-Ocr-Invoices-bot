@@ -1,3 +1,5 @@
+import TelegramBot from 'node-telegram-bot-api';
+
 export interface DocumentItem {
 	name: string; // "Кирпич"
 	article: string | null; // "1234567890 || КР 2.04 || ZST10230-04079"
@@ -28,6 +30,21 @@ export interface ProcessingResult {
 	error?: string;
 }
 
+export type FileType = 'document' | 'photo';
+export type ProcessingStatus = 'downloading' | 'analyzing' | 'completed';
+
+export interface FilePaths {
+	jsonPath: string;
+	xlsxPath: string;
+}
+
+export interface ProcessingContext {
+	chatId: number;
+	fileType: FileType;
+	fileName: string;
+	statusMessage: TelegramBot.Message;
+}
+
 export interface ClaudeApiStatus {
 	isHealthy: boolean;
 	lastErrorTime: number;
@@ -46,7 +63,6 @@ export interface Config {
 	};
 	paths: {
 		uploads: string;
-		files: string;
 	};
 	claudeApiStatus: ClaudeApiStatus;
 	maxParallelRequests: number;

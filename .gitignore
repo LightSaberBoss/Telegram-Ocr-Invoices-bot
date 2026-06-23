@@ -40,12 +40,16 @@ yarn-error.log*
 tmp/
 temp/
 
-# Uploaded files
+# Uploaded and temp files
 /uploads/*
-!/uploads/.gitkeep 
+!/uploads/.gitkeep
+/files/*
+!/files/.gitkeep
 
 # Coverage
 coverage/
 
 # Memory files
 memory-bank/
+
+._*

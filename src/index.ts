@@ -1,102 +1,76 @@
-import { startBot } from './services/telegramBot';
-import { config } from './config';
-import fs from 'fs';
-import path from 'path';
+import { initializeBot, stopBot } from './services/telegramBot';
+import { createScopedLogger } from './services/logger';
+import { setupDefaultDirectories } from './utils/directories';
 
-// Обработка необработанных исключений
-process.on('uncaughtException', (error) => {
-	const errorMsg = `${new Date().toISOString()} - Необработанное исключение: ${error.message}\n${error.stack}\n`;
-	console.error(errorMsg);
+const log = createScopedLogger('index');
 
-	// Запись в лог-файл
-	try {
-		const logDir = path.resolve(__dirname, '../logs');
-		if (!fs.existsSync(logDir)) {
-			try {
-				fs.mkdirSync(logDir, { recursive: true });
-			} catch (mkdirError) {
-				console.error('Не удалось создать директорию логов:', mkdirError);
-			}
-		}
-		if (fs.existsSync(logDir)) {
-			fs.appendFileSync(path.join(logDir, 'fatal_errors.log'), errorMsg);
-		}
-	} catch (e) {
-		console.error('Не удалось записать в лог-файл:', e);
+const APP_CONFIG = {
+	GRACEFUL_SHUTDOWN_TIMEOUT: 10000,
+	isShuttingDown: false,
+};
+
+const handleUncaughtException = (error: Error): void => {
+	log.error('Необработанное исключение', {
+		message: error.message,
+		stack: error.stack,
+	});
+};
+
+const handleUnhandledRejection = (reason: unknown): void => {
+	log.error('Необработанное отклонение промиса', { reason });
+};
+
+const handleShutdownSignal = (signal: string): void => {
+	log.info(`Получен сигнал завершения: ${signal}`);
+	gracefulShutdown();
+};
+
+const gracefulShutdown = async (): Promise<void> => {
+	if (APP_CONFIG.isShuttingDown) {
+		log.warn('Graceful shutdown уже выполняется');
+		return;
 	}
 
-	// Завершаем процесс с небольшой задержкой для логирования
-	setTimeout(() => process.exit(1), 1000);
-});
-
-// Обработка отклоненных промисов без обработчика
-process.on('unhandledRejection', (reason, promise) => {
-	const errorMsg = `${new Date().toISOString()} - Необработанное отклонение промиса: ${reason}\n`;
-	console.error(errorMsg);
+	APP_CONFIG.isShuttingDown = true;
+	log.info('Начинается graceful shutdown...');
 
 	try {
-		const logDir = path.resolve(__dirname, '../logs');
-		if (!fs.existsSync(logDir)) {
-			try {
-				fs.mkdirSync(logDir, { recursive: true });
-			} catch (mkdirError) {
-				console.error('Не удалось создать директорию логов:', mkdirError);
-			}
-		}
-		if (fs.existsSync(logDir)) {
-			fs.appendFileSync(path.join(logDir, 'unhandled_rejections.log'), errorMsg);
-		}
-	} catch (e) {
-		console.error('Не удалось записать в лог-файл:', e);
-	}
-});
-
-// Функция очистки старых логов
-function cleanupOldLogs() {
-	try {
-		const logsDir = path.resolve(__dirname, '../logs');
-		if (!fs.existsSync(logsDir)) return;
-
-		const files = fs.readdirSync(logsDir);
-		// Получаем время неделю назад
-		const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-		files.forEach((file) => {
-			try {
-				const filePath = path.join(logsDir, file);
-				const stats = fs.statSync(filePath);
-
-				// Удаляем файлы старше недели
-				if (stats.mtimeMs < oneWeekAgo) {
-					fs.unlinkSync(filePath);
-					console.log(`Cleaned up old log file: ${filePath}`);
-				}
-			} catch (fileError) {
-				console.error(`Error processing log file ${file}:`, fileError);
-			}
-		});
+		stopBot();
+		await new Promise((resolve) => setTimeout(resolve, APP_CONFIG.GRACEFUL_SHUTDOWN_TIMEOUT));
+		log.info('Приложение завершено корректно');
+		process.exit(0);
 	} catch (error) {
-		console.error('Error cleaning up old logs:', error);
+		log.error('Ошибка при graceful shutdown', { error });
+		process.exit(1);
 	}
-}
+};
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = config.paths.uploads;
-if (!fs.existsSync(uploadsDir)) {
-	fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const setupGlobalErrorHandlers = (): void => {
+	process.on('uncaughtException', handleUncaughtException);
+	process.on('unhandledRejection', handleUnhandledRejection);
+	process.on('SIGINT', () => handleShutdownSignal('SIGINT'));
+	process.on('SIGTERM', () => handleShutdownSignal('SIGTERM'));
+	process.on('SIGUSR2', () => handleShutdownSignal('SIGUSR2'));
+	process.on('exit', (code) => {
+		log.info(`Процесс завершен с кодом: ${code}`);
+	});
 
-// Create logs directory if it doesn't exist
-const logsDir = path.resolve(__dirname, '../logs');
-if (!fs.existsSync(logsDir)) {
-	fs.mkdirSync(logsDir, { recursive: true });
-}
+	log.info('Глобальные обработчики ошибок настроены');
+};
 
-// Запускаем очистку при старте и каждый день
-cleanupOldLogs();
-setInterval(cleanupOldLogs, 24 * 60 * 60 * 1000);
+const startApplication = (): void => {
+	try {
+		log.info('Запуск Telegram OCR Bot...');
 
-// Start the Telegram bot
-startBot();
+		setupGlobalErrorHandlers();
+		setupDefaultDirectories();
+		initializeBot();
 
-console.log('Application started successfully');
+		log.info('Приложение запущено и готово к работе');
+	} catch (error) {
+		log.error('Критическая ошибка при запуске', { error });
+		process.exit(1);
+	}
+};
+
+startApplication();
