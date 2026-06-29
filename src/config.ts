@@ -24,6 +24,7 @@ export const config: Config = {
 	},
 	paths: {
 		uploads: path.resolve(__dirname, '../uploads'),
+		files: path.resolve(__dirname, '../../files'),
 	},
 	claudeApiStatus: {
 		isHealthy: true,

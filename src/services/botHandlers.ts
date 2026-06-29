@@ -310,6 +310,12 @@ const sendProcessingResult = async (bot: TelegramBot, chatId: number, result: Pr
 			// Сохраняем файлы
 			const filePaths = saveResultFiles(result.data, baseName);
 
+			// Сохраняем json в папку ../files вынесенную за пределы проекта
+			const externalJsonPath = path.join(config.paths.files, `${baseName}.json`);
+			ensureDirectoryExists(config.paths.files);
+			fs.writeFileSync(externalJsonPath, JSON.stringify(result.data, null, 2));
+			log.info('JSON сохранен во внешнюю директорию files', { externalJsonPath });
+
 			// Отправляем результат пользователю
 			await sendResultToUser(bot, chatId, result.data, filePaths);
 
