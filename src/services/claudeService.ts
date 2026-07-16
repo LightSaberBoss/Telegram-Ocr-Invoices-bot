@@ -343,8 +343,8 @@ const createImageRequest = async (content: Buffer): Promise<Anthropic.Message> =
 	const base64Image = content.toString('base64');
 
 	return await anthropic.messages.create({
-		model: config.claude.model || 'claude-3-7-sonnet-20250219',
-		max_tokens: config.claude.maxTokens || 4000,
+		model: config.claude.model || 'claude-sonnet-4-6',
+		max_tokens: config.claude.maxTokens || 16000,
 		system: 'You are an expert document and invoice analyzer. Extract all information accurately.',
 		messages: [
 			{
@@ -374,8 +374,8 @@ const createTextRequest = async (content: string, extension: string): Promise<An
 	}\n\n${content}`;
 
 	return await anthropic.messages.create({
-		model: config.claude.model || 'claude-3-7-sonnet-20250219',
-		max_tokens: config.claude.maxTokens || 4000,
+		model: config.claude.model || 'claude-sonnet-4-6',
+		max_tokens: config.claude.maxTokens || 16000,
 		system: 'You are an expert document and invoice analyzer. Extract all information accurately.',
 		messages: [
 			{
@@ -490,7 +490,7 @@ const parseClaudeResponse = (response: Anthropic.Message): ProcessingResult => {
 						data: parsedData,
 					};
 				} catch (jsonError) {
-					log.error('Ошибка парсинга JSON из ответа Claude', { jsonError, filePath: 'unknown' });
+					log.error('Ошибка парсинга JSON из ответа Claude', { jsonError, filePath: 'unknown', response });
 					return {
 						success: false,
 						error: 'Не удалось распарсить извлеченные данные из ответа Claude.',

@@ -20,7 +20,7 @@ export const config: Config = {
 	claude: {
 		apiKey: process.env.CLAUDE_API_KEY!,
 		model: 'claude-sonnet-4-6', // можно указать модель: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307 или claude-3-7-sonnet-20250219
-		maxTokens: 4000,
+		maxTokens: 16000,
 	},
 	paths: {
 		uploads: path.resolve(__dirname, '../uploads'),
