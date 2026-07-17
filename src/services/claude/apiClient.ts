@@ -25,7 +25,7 @@ const RETRY_CONFIG = {
 /** Общие параметры запроса: system + принудительный tool_use для JSON-схемы */
 const getCommonRequestOptions = () => ({
 	model: config.claude.model || 'claude-sonnet-4-6',
-	max_tokens: config.claude.maxTokens || 32000,
+	max_tokens: config.claude.maxTokens || 20000,
 	system: SYSTEM_PROMPT,
 	tools: [EXTRACT_INVOICE_TOOL],
 	tool_choice: {
