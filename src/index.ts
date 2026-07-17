@@ -1,11 +1,11 @@
-import { initializeBot, stopBot } from './services/telegramBot';
+import { initializeBot, stopBot } from './services/telegram/botLifecycle';
 import { createScopedLogger } from './services/logger';
 import { setupDefaultDirectories } from './utils/directories';
 
 const log = createScopedLogger('index');
 
 const APP_CONFIG = {
-	GRACEFUL_SHUTDOWN_TIMEOUT: 10000,
+	GRACEFUL_SHUTDOWN_TIMEOUT: 1000,
 	isShuttingDown: false,
 };
 
@@ -50,7 +50,6 @@ const setupGlobalErrorHandlers = (): void => {
 	process.on('unhandledRejection', handleUnhandledRejection);
 	process.on('SIGINT', () => handleShutdownSignal('SIGINT'));
 	process.on('SIGTERM', () => handleShutdownSignal('SIGTERM'));
-	process.on('SIGUSR2', () => handleShutdownSignal('SIGUSR2'));
 	process.on('exit', (code) => {
 		log.info(`Процесс завершен с кодом: ${code}`);
 	});

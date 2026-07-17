@@ -1,3 +1,7 @@
+/**
+ * Модуль логирования: запись в файлы (app.log / error.log), консоль с цветами, ротация старых логов.
+ * Используй createScopedLogger('moduleName') для логов с префиксом модуля.
+ */
 import fs from 'fs';
 import path from 'path';
 import util from 'util';

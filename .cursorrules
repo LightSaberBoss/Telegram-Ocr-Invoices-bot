@@ -1,8 +1,8 @@
 # Cursor Rules для проекта Telegram OCR Invoices Bot
 
 ## Критические пути реализации
-- Обработка запросов пользователей осуществляется через telegramBot.ts
-- Анализ документов происходит через claudeService.ts
+- Обработка запросов пользователей: telegram/botLifecycle.ts, handlers/
+- Анализ документов: claude/processDocument.ts и claude/
 - Конфигурация системы хранится в config.ts с использованием переменных окружения
 
 ## Предпочтения и рабочий процесс
