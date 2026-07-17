@@ -9,7 +9,7 @@ import { config } from '../../config';
 import { ParsedDocument, ProcessingResult, FilePaths } from '../../types/types';
 import { normalizeFileName, deleteFileIfExists } from '../../utils/files';
 import { ensureDirectoryExists } from '../../utils/directories';
-import { createExcelFileFromData } from '../../utils/createExcelFile';
+import { createExcelFileFromData } from '../../utils/excel';
 import { createScopedLogger } from '../logger';
 
 const log = createScopedLogger('handlers/sendResult');

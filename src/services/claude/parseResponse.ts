@@ -1,58 +1,36 @@
 /**
- * Парсинг ответа Claude API: извлечение JSON из текста и валидация структуры.
+ * Извлечение structured данных из ответа Claude (tool_use extract_invoice).
  */
 import type Anthropic from '@anthropic-ai/sdk';
 import { ParsedDocument, ProcessingResult } from '../../types/types';
 import { config } from '../../config';
 import { createScopedLogger } from '../logger';
+import { EXTRACT_INVOICE_TOOL_NAME } from './prompt';
 
 const log = createScopedLogger('claude/parseResponse');
 
 /**
- * Извлекает JSON из текстового ответа Claude и возвращает структурированный результат.
+ * Берёт input из tool_use extract_invoice.
  * @param response Ответ от Anthropic API
- * @returns Результат обработки с данными документа или ошибкой
  */
 export const parseClaudeResponse = (response: Anthropic.Message): ProcessingResult => {
 	config.claudeApiStatus.consecutiveErrors = 0;
 
-	if (response.content && response.content.length > 0) {
-		const responseContent = response.content[0];
+	const toolBlock = response.content?.find(
+		(block): block is Anthropic.ToolUseBlock =>
+			block.type === 'tool_use' && block.name === EXTRACT_INVOICE_TOOL_NAME,
+	);
 
-		if ('text' in responseContent) {
-			const text = responseContent.text;
-			const jsonMatch = text.match(/\{[\s\S]*\}/);
-
-			if (jsonMatch) {
-				try {
-					const parsedData = JSON.parse(jsonMatch[0]) as ParsedDocument;
-					return {
-						success: true,
-						data: parsedData,
-					};
-				} catch (jsonError) {
-					log.error('Ошибка парсинга JSON из ответа Claude', { jsonError, filePath: 'unknown', response });
-					return {
-						success: false,
-						error: 'Не удалось распарсить извлеченные данные из ответа Claude.',
-					};
-				}
-			}
-
-			return {
-				success: false,
-				error: 'Claude не вернул корректные JSON данные.',
-			};
-		}
-
+	if (!toolBlock) {
+		log.error('В ответе Claude нет tool_use extract_invoice', { response });
 		return {
 			success: false,
-			error: 'Claude API вернул неподдерживаемый тип контента.',
+			error: 'Claude не вернул структурированные данные.',
 		};
 	}
 
 	return {
-		success: false,
-		error: 'Claude API вернул пустой ответ.',
+		success: true,
+		data: toolBlock.input as ParsedDocument,
 	};
 };

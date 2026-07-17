@@ -1,15 +1,17 @@
 /**
  * Подготовка входных файлов перед отправкой в Claude API.
- * Конвертирует изображения, извлекает текст из PDF и Excel.
+ * Конвертирует изображения, готовит PDF для native document block, извлекает CSV из Excel.
  */
 import fs from 'fs';
 import path from 'path';
-import * as XLSX from 'xlsx';
-import pdfParse from 'pdf-parse';
 import sharp from 'sharp';
 import { createScopedLogger } from '../logger';
+import { extractTextFromExcel } from '../../utils/excel';
 
 const log = createScopedLogger('claude/prepareMedia');
+
+/** Максимальный размер PDF для отправки в Claude API (32 MB) */
+const MAX_PDF_SIZE_BYTES = 32 * 1024 * 1024;
 
 export type MediaType = 'image' | 'pdf' | 'excel' | 'unknown';
 
@@ -55,63 +57,34 @@ export const prepareImageForClaude = async (input: string | Buffer): Promise<Buf
 };
 
 /**
- * Извлекает текст из PDF файла или Buffer.
+ * Подготавливает PDF для отправки в Claude API как native document block.
  * @param input Путь к PDF файлу или Buffer с PDF данными
- * @returns Извлеченный текст и количество страниц
+ * @returns Buffer с PDF данными
  */
-export const extractTextFromPdf = async (input: string | Buffer): Promise<{ text: string; pageCount: number }> => {
+export const preparePdfForClaude = async (input: string | Buffer): Promise<Buffer> => {
 	try {
 		let dataBuffer: Buffer;
 
 		if (Buffer.isBuffer(input)) {
 			dataBuffer = input;
-			log.info('extractTextFromPdf: Обработка PDF из памяти (Buffer)');
+			log.info('preparePdfForClaude: Обработка PDF из памяти (Buffer)');
 		} else {
 			dataBuffer = fs.readFileSync(input);
-			log.info(`extractTextFromPdf: Обработка PDF из файла: ${input}`);
+			log.info(`preparePdfForClaude: Обработка PDF из файла: ${input}`);
 		}
 
-		const pdfData = await pdfParse(dataBuffer);
-
-		return {
-			text: pdfData.text,
-			pageCount: pdfData.numpages,
-		};
-	} catch (error) {
-		log.error('Ошибка извлечения текста из PDF', { error, inputType: Buffer.isBuffer(input) ? 'Buffer' : 'file' });
-		throw new Error('Не удалось извлечь текст из PDF');
-	}
-};
-
-/**
- * Извлекает текст из файла Excel.
- * @param filePath Путь к файлу Excel
- * @returns Извлеченный текст в виде строки
- */
-export const extractTextFromExcel = async (filePath: string): Promise<string> => {
-	try {
-		const workbook = XLSX.readFile(filePath);
-		let extractedText = '';
-
-		for (const sheetName of workbook.SheetNames) {
-			const worksheet = workbook.Sheets[sheetName];
-			extractedText += `=== Лист: ${sheetName} ===\n`;
-
-			const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-			for (const row of jsonData) {
-				if (Array.isArray(row) && row.length > 0) {
-					extractedText += row.map((cell) => (cell !== undefined && cell !== null ? cell.toString() : '')).join('\t') + '\n';
-				}
-			}
-
-			extractedText += '\n';
+		if (dataBuffer.length > MAX_PDF_SIZE_BYTES) {
+			throw new Error(`PDF слишком большой (${Math.round(dataBuffer.length / 1024 / 1024)} MB). Максимум: 32 MB.`);
 		}
 
-		return extractedText;
+		return dataBuffer;
 	} catch (error) {
-		log.error('Ошибка извлечения текста из Excel', { error, filePath });
-		throw new Error('Не удалось извлечь текст из Excel');
+		if (error instanceof Error && error.message.includes('PDF слишком большой')) {
+			throw error;
+		}
+
+		log.error('Ошибка подготовки PDF', { error, inputType: Buffer.isBuffer(input) ? 'Buffer' : 'file' });
+		throw new Error('Не удалось подготовить PDF для отправки');
 	}
 };
 
@@ -132,14 +105,14 @@ export const prepareMediaForClaude = async (filePath: string, fileBuffer?: Buffe
 
 	if (extension === '.pdf') {
 		const input = fileBuffer || filePath;
-		const { text, pageCount } = await extractTextFromPdf(input);
-		const formattedText = `=== PDF документ (${pageCount} страниц) ===\n\n${text}`;
-		return { mediaType: 'pdf', content: formattedText };
+		const pdfBuffer = await preparePdfForClaude(input);
+		return { mediaType: 'pdf', content: pdfBuffer };
 	}
 
 	if (['.xls', '.xlsx', '.csv'].includes(extension)) {
-		const text = await extractTextFromExcel(filePath);
-		const formattedText = `=== Excel документ ===\n\n${text}`;
+		const input = fileBuffer || filePath;
+		const text = await extractTextFromExcel(input);
+		const formattedText = `=== Excel документ (CSV) ===\n\n${text}`;
 		return { mediaType: 'excel', content: formattedText };
 	}
 

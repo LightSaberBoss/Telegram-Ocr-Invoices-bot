@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ProcessingResult } from '../../types/types';
 import { config } from '../../config';
 import { createScopedLogger } from '../logger';
-import { BASE_PROMPT } from './prompt';
+import { BASE_PROMPT, EXTRACT_INVOICE_TOOL, EXTRACT_INVOICE_TOOL_NAME, SYSTEM_PROMPT } from './prompt';
 
 const log = createScopedLogger('claude/apiClient');
 
@@ -21,6 +21,19 @@ const RETRY_CONFIG = {
 	INITIAL_DELAY: 5000,
 	DELAY_MULTIPLIER: 2,
 } as const;
+
+/** Общие параметры запроса: system + принудительный tool_use для JSON-схемы */
+const getCommonRequestOptions = () => ({
+	model: config.claude.model || 'claude-sonnet-4-6',
+	max_tokens: config.claude.maxTokens || 32000,
+	system: SYSTEM_PROMPT,
+	tools: [EXTRACT_INVOICE_TOOL],
+	tool_choice: {
+		type: 'tool' as const,
+		name: EXTRACT_INVOICE_TOOL_NAME,
+		disable_parallel_tool_use: true,
+	},
+});
 
 /**
  * Проверяет, не находится ли API в режиме охлаждения после серии ошибок.
@@ -74,9 +87,7 @@ const createImageRequest = async (content: Buffer): Promise<Anthropic.Message> =
 	const base64Image = content.toString('base64');
 
 	return await anthropic.messages.create({
-		model: config.claude.model || 'claude-sonnet-4-6',
-		max_tokens: config.claude.maxTokens || 16000,
-		system: 'You are an expert document and invoice analyzer. Extract all information accurately.',
+		...getCommonRequestOptions(),
 		messages: [
 			{
 				role: 'user',
@@ -97,23 +108,44 @@ const createImageRequest = async (content: Buffer): Promise<Anthropic.Message> =
 };
 
 /**
- * Создаёт текстовый запрос к Claude для PDF/Excel (предварительно извлечённый текст).
- * @param content Текст документа
- * @param extension Расширение исходного файла
+ * Создаёт мультимодальный запрос к Claude для PDF (native document block).
+ * @param content Buffer с PDF данными
  */
-const createTextRequest = async (content: string, extension: string): Promise<Anthropic.Message> => {
-	const documentText = `${BASE_PROMPT}\n\nВот содержание документа:${
-		extension === '.xls' || extension === '.xlsx' ? '\nЭто данные, извлеченные из Excel файла в текстовом формате.' : ''
-	}\n\n${content}`;
+const createPdfRequest = async (content: Buffer): Promise<Anthropic.Message> => {
+	const base64Pdf = content.toString('base64');
 
 	return await anthropic.messages.create({
-		model: config.claude.model || 'claude-sonnet-4-6',
-		max_tokens: config.claude.maxTokens || 16000,
-		system: 'You are an expert document and invoice analyzer. Extract all information accurately.',
+		...getCommonRequestOptions(),
 		messages: [
 			{
 				role: 'user',
-				content: documentText,
+				content: [
+					{ type: 'text', text: BASE_PROMPT },
+					{
+						type: 'document',
+						source: {
+							type: 'base64',
+							media_type: 'application/pdf',
+							data: base64Pdf,
+						},
+					},
+				],
+			},
+		],
+	});
+};
+
+/**
+ * Создаёт текстовый запрос к Claude для Excel (CSV, извлечённый из таблицы).
+ * @param content Текст документа в формате CSV
+ */
+const createTextRequest = async (content: string): Promise<Anthropic.Message> => {
+	return await anthropic.messages.create({
+		...getCommonRequestOptions(),
+		messages: [
+			{
+				role: 'user',
+				content: `${BASE_PROMPT}\n\nСодержание документа (Excel → CSV):\n\n${content}`,
 			},
 		],
 	});
@@ -171,12 +203,11 @@ const handleApiError = async (error: any, retryCount: number, retryDelay: number
 
 /**
  * Выполняет запрос к Claude API с автоматическими повторными попытками.
- * @param mediaType Тип медиа: image или текстовый (pdf/excel)
+ * @param mediaType Тип медиа: image, pdf или excel
  * @param content Подготовленное содержимое
- * @param extension Расширение исходного файла
  * @returns Ответ от Anthropic API
  */
-export const makeRequestWithRetry = async (mediaType: string, content: Buffer | string, extension: string): Promise<Anthropic.Message> => {
+export const makeRequestWithRetry = async (mediaType: string, content: Buffer | string): Promise<Anthropic.Message> => {
 	let retryCount = 0;
 	let retryDelay = RETRY_CONFIG.INITIAL_DELAY;
 
@@ -186,7 +217,11 @@ export const makeRequestWithRetry = async (mediaType: string, content: Buffer | 
 				return await createImageRequest(content as Buffer);
 			}
 
-			return await createTextRequest(content as string, extension);
+			if (mediaType === 'pdf') {
+				return await createPdfRequest(content as Buffer);
+			}
+
+			return await createTextRequest(content as string);
 		} catch (error: any) {
 			if (error.retryCount !== undefined) {
 				retryCount = error.retryCount;

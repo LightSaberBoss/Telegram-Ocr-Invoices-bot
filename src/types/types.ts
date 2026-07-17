@@ -1,27 +1,27 @@
 import type { Message } from 'node-telegram-bot-api';
 
 export interface DocumentItem {
-	name: string; // "Кирпич"
+	name: string | null; // "Кирпич"
 	article: string | null; // "1234567890 || КР 2.04 || ZST10230-04079"
-	quantity: number; // 1000
-	unit: string; // "шт"
-	price_no_pdv: number; // 100
-	price_with_pdv: number; // 110
-	total_no_pdv: number; // 10000
-	total_with_pdv: number; // 11000
+	quantity: number | null; // 1000
+	unit: string | null; // "шт"
+	price_no_pdv: number | null; // 100
+	price_with_pdv: number | null; // 110
+	total_no_pdv: number | null; // 10000
+	total_with_pdv: number | null; // 11000
 }
 
 export interface ParsedDocument {
-	invoice_number: string; // 1234
-	invoice_date: string; // DD.MM.YYYY
-	edrpou: string; // 1234567890
-	ipn: string; // 1234567890
-	supplier: string; // "ООО 'Стройматериалы'"
+	invoice_number: string | null; // 1234
+	invoice_date: string | null; // DD.MM.YYYY
+	edrpou: string | null; // 1234567890
+	ipn: string | null; // 1234567890
+	supplier: string | null; // "ООО 'Стройматериалы'"
 	isPriceWithPdv: boolean; // true
 	items: DocumentItem[];
-	total_no_pdv: number; // 10000
-	total_pdv: number; // 1000
-	total_with_pdv: number; // 11000
+	total_no_pdv: number | null; // 10000
+	total_pdv: number | null; // 1000
+	total_with_pdv: number | null; // 11000
 }
 
 export interface ProcessingResult {

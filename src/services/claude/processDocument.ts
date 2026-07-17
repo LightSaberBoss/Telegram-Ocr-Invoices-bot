@@ -2,7 +2,6 @@
  * Оркестратор распознавания документов через Claude API.
  * Координирует: health-check → подготовку медиа → запрос → парсинг ответа.
  */
-import path from 'path';
 import { ProcessingResult } from '../../types/types';
 import { createScopedLogger } from '../logger';
 import { checkApiHealth, waitForAvailableSlot, incrementActiveRequests, decrementActiveRequests, makeRequestWithRetry } from './apiClient';
@@ -16,10 +15,10 @@ const log = createScopedLogger('claude/processDocument');
  * Поддерживает изображения, PDF и Excel файлы.
  * @param filePath Локальный путь к файлу
  * @param originalFilePath Исходный путь в Telegram (опционально)
- * @param fileBuffer Buffer с данными файла (для оптимизации обработки изображений и PDF)
+ * @param fileBuffer Buffer с данными файла (для изображений и PDF без записи на диск)
  * @returns Результат обработки с извлеченными данными
  */
-export const processDocumentWithFlexibleExtraction = async (
+export const processDocument = async (
 	filePath: string,
 	originalFilePath?: string,
 	fileBuffer?: Buffer,
@@ -34,10 +33,9 @@ export const processDocumentWithFlexibleExtraction = async (
 		incrementActiveRequests();
 
 		log.info(`Обработка документа через Claude API: ${filePath}`, { originalFilePath });
-		const extension = path.extname(filePath).toLowerCase();
 
 		const { mediaType, content } = await prepareMediaForClaude(filePath, fileBuffer);
-		const response = await makeRequestWithRetry(mediaType, content, extension);
+		const response = await makeRequestWithRetry(mediaType, content);
 
 		return parseClaudeResponse(response);
 	} catch (error) {

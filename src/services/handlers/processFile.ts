@@ -8,7 +8,7 @@ import { MESSAGES } from '../../variables/messages';
 import { config } from '../../config';
 import { FileType, ProcessingContext } from '../../types/types';
 import { deleteFileIfExists } from '../../utils/files';
-import { processDocumentWithFlexibleExtraction } from '../claude/processDocument';
+import { processDocument } from '../claude/processDocument';
 import { createScopedLogger } from '../logger';
 import { getFileInfo, downloadFileContent } from './fileDownload';
 import { sendInitialStatus, updateProcessingStatus } from './statusUpdates';
@@ -38,7 +38,7 @@ export const processFile = async (bot: TelegramBot, msg: Message, fileType: File
 		const fileBuffer = await downloadFileContent(fileInfo);
 
 		await updateProcessingStatus(bot, context, 'analyzing');
-		const result = await processDocumentWithFlexibleExtraction(fileInfo.localPath, fileInfo.telegramPath, fileBuffer);
+		const result = await processDocument(fileInfo.localPath, fileInfo.telegramPath, fileBuffer);
 		log.info('Анализ завершен', { chatId, fileType, fileName });
 
 		await updateProcessingStatus(bot, context, 'completed');
